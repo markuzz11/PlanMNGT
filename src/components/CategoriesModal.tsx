@@ -30,11 +30,14 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
   const [newLabel, setNewLabel] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
 
+  const [error, setError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLabel.trim()) return;
+    setError(null);
 
     const id = `cat-${Date.now()}`;
     const updated = [
@@ -51,9 +54,10 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
 
   const handleDeleteCategory = (id: string) => {
     if (categories.length <= 1) {
-      alert('Нельзя удалить последнюю категорию');
+      setError('Нельзя удалить последнюю категорию');
       return;
     }
+    setError(null);
     const updated = categories.filter((c) => c.id !== id);
     onSaveCategories(updated);
   };
@@ -80,6 +84,11 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* Add New Category Form */}
           <form onSubmit={handleAddCategory} className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-3">
+            {error && (
+              <div className="text-xs text-rose-400 bg-rose-950/40 p-2 rounded border border-rose-800/50">
+                {error}
+              </div>
+            )}
             <div className="text-xs font-semibold text-slate-300">
               Создать новую категорию:
             </div>

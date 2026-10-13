@@ -15,6 +15,8 @@ import {
   loadCategories,
   saveCategories,
   formatDateKey,
+  clearAllStorage,
+  restoreDemoData,
 } from './utils/storage';
 import { Header, ActiveTab } from './components/Header';
 import { DateSelector } from './components/DateSelector';
@@ -24,7 +26,8 @@ import { TaskRegistry } from './components/TaskRegistry';
 import { NotesSection } from './components/NotesSection';
 import { TaskModal } from './components/TaskModal';
 import { CategoriesModal } from './components/CategoriesModal';
-import { Plus, Check, Download, RotateCcw } from 'lucide-react';
+import { ConfirmModal } from './components/ConfirmModal';
+import { Plus, Check, Download, RotateCcw, Trash2 } from 'lucide-react';
 
 export default function App() {
   const [tasks, setTasks] = useState<CRMTask[]>([]);
@@ -38,6 +41,13 @@ export default function App() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<CRMTask | null>(null);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'danger' | 'primary';
+    action: () => void;
+  } | null>(null);
 
   // Status feedback toast
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -194,12 +204,41 @@ export default function App() {
     showToast('Резервная копия сохранена в файл');
   };
 
-  // Reset to default seed
-  const handleResetData = () => {
-    if (confirm('Сбросить данные к начальному демо-набору? Текущие данные будут заменены.')) {
-      localStorage.clear();
-      window.location.reload();
-    }
+  // Clear all data completely (clean slate: 0 tasks, 0 notes)
+  const handleClearAllData = () => {
+    setConfirmDialog({
+      title: 'Очистить абсолютно все данные?',
+      message: 'Все задачи, рабочие заметки и блокнот будут удалены (0 дел). Вы получите абсолютно чистое пространство.',
+      confirmLabel: 'Да, очистить всё',
+      variant: 'danger',
+      action: () => {
+        clearAllStorage();
+        setTasks([]);
+        setNotes([]);
+        setScratchpad('');
+        setConfirmDialog(null);
+        showToast('Все данные полностью очищены (чистый лист)');
+      },
+    });
+  };
+
+  // Restore demo template if desired
+  const handleRestoreDemoData = () => {
+    setConfirmDialog({
+      title: 'Загрузить демонстрационные примеры?',
+      message: 'Будет создан набор примеров дел на сегодня и ближайшие дни, а также заметки. Текущие данные будут перезаписаны.',
+      confirmLabel: 'Загрузить примеры',
+      variant: 'primary',
+      action: () => {
+        const demo = restoreDemoData();
+        setTasks(demo.tasks);
+        setNotes(demo.notes);
+        setScratchpad(demo.scratchpad);
+        setSelectedDate(formatDateKey(new Date()));
+        setConfirmDialog(null);
+        showToast('Демо-данные успешно загружены');
+      },
+    });
   };
 
   // Tasks for the currently selected date
@@ -214,7 +253,7 @@ export default function App() {
         onOpenNewTaskModal={() => handleOpenNewTask('planned')}
         onOpenCategoriesModal={() => setIsCategoriesModalOpen(true)}
         onExportData={handleExportData}
-        onResetData={handleResetData}
+        onResetData={handleClearAllData}
       />
 
       {/* Main Content Area */}
@@ -312,6 +351,19 @@ export default function App() {
         onSaveCategories={updateCategoriesState}
       />
 
+      {/* Confirmation Modal */}
+      {confirmDialog && (
+        <ConfirmModal
+          isOpen={Boolean(confirmDialog)}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.action}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
+
       {/* Toast feedback */}
       {feedbackToast && (
         <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-slate-700 text-white px-4 py-2.5 rounded-lg shadow-2xl text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -343,12 +395,20 @@ export default function App() {
               <span>Экспорт JSON</span>
             </button>
             <button
-              onClick={handleResetData}
-              className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-400 transition-colors"
-              title="Сбросить демо-данные"
+              onClick={handleRestoreDemoData}
+              className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors"
+              title="Загрузить демонстрационные примеры"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Сброс данных</span>
+              <span>Демо-примеры</span>
+            </button>
+            <button
+              onClick={handleClearAllData}
+              className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-400 transition-colors"
+              title="Очистить абсолютно все данные"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Очистить всё</span>
             </button>
           </div>
         </div>

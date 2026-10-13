@@ -206,7 +206,10 @@ export const NOTE_TAG_CONFIG: Record<
 };
 
 // Seed tasks
-function getInitialSeedTasks(): CRMTask[] {
+const INITIALIZED_KEY = 'planmngt_initialized_v2';
+
+// Export seed getters so they can be re-applied on request
+export function getInitialSeedTasks(): CRMTask[] {
   const today = formatDateKey(new Date());
   
   const tomorrowDate = new Date();
@@ -300,7 +303,7 @@ function getInitialSeedTasks(): CRMTask[] {
   ];
 }
 
-function getInitialSeedNotes(): CRMNote[] {
+export function getInitialSeedNotes(): CRMNote[] {
   const today = formatDateKey(new Date());
 
   return [
@@ -335,16 +338,23 @@ function getInitialSeedNotes(): CRMNote[] {
 // LocalStorage loaders
 export function loadTasks(): CRMTask[] {
   try {
+    const isInitialized = localStorage.getItem(INITIALIZED_KEY);
     const raw = localStorage.getItem(TASKS_KEY);
+
+    if (isInitialized) {
+      return raw ? JSON.parse(raw) : [];
+    }
+
     if (!raw) {
       const initial = getInitialSeedTasks();
       saveTasks(initial);
+      localStorage.setItem(INITIALIZED_KEY, 'true');
       return initial;
     }
     return JSON.parse(raw);
   } catch (e) {
     console.error('Failed to load tasks from localStorage', e);
-    return getInitialSeedTasks();
+    return [];
   }
 }
 
@@ -358,7 +368,13 @@ export function saveTasks(tasks: CRMTask[]): void {
 
 export function loadNotes(): CRMNote[] {
   try {
+    const isInitialized = localStorage.getItem(INITIALIZED_KEY);
     const raw = localStorage.getItem(NOTES_KEY);
+
+    if (isInitialized) {
+      return raw ? JSON.parse(raw) : [];
+    }
+
     if (!raw) {
       const initial = getInitialSeedNotes();
       saveNotes(initial);
@@ -367,7 +383,7 @@ export function loadNotes(): CRMNote[] {
     return JSON.parse(raw);
   } catch (e) {
     console.error('Failed to load notes from localStorage', e);
-    return getInitialSeedNotes();
+    return [];
   }
 }
 
@@ -381,7 +397,12 @@ export function saveNotes(notes: CRMNote[]): void {
 
 export function loadScratchpad(): string {
   try {
-    return localStorage.getItem(SCRATCHPAD_KEY) || 'Быстрые мысли, ссылки и заметки на лету...';
+    const isInitialized = localStorage.getItem(INITIALIZED_KEY);
+    const raw = localStorage.getItem(SCRATCHPAD_KEY);
+    if (isInitialized) {
+      return raw ?? '';
+    }
+    return raw ?? 'Быстрые мысли, ссылки и заметки на лету...';
   } catch {
     return '';
   }
@@ -393,4 +414,28 @@ export function saveScratchpad(text: string): void {
   } catch (e) {
     console.error('Failed to save scratchpad', e);
   }
+}
+
+// Clear all data completely (clean slate: 0 tasks, 0 notes)
+export function clearAllStorage(): void {
+  try {
+    saveTasks([]);
+    saveNotes([]);
+    saveScratchpad('');
+    localStorage.setItem(INITIALIZED_KEY, 'true');
+  } catch (e) {
+    console.error('Failed to clear storage', e);
+  }
+}
+
+// Restore demo data on demand
+export function restoreDemoData(): { tasks: CRMTask[]; notes: CRMNote[]; scratchpad: string } {
+  const tasks = getInitialSeedTasks();
+  const notes = getInitialSeedNotes();
+  const scratchpad = 'Быстрые мысли, ссылки и заметки на лету...';
+  saveTasks(tasks);
+  saveNotes(notes);
+  saveScratchpad(scratchpad);
+  localStorage.setItem(INITIALIZED_KEY, 'true');
+  return { tasks, notes, scratchpad };
 }
